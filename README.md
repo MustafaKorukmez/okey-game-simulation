@@ -45,8 +45,6 @@ Clone the repository and (optionally) create a virtual environment:
 ```bash
 git clone https://github.com/MustafaKorukmez/okey-game-simulation.git
 cd okey-game-simulation
-python3 -m venv venv
-source venv/bin/activate
 ```
 
 ---

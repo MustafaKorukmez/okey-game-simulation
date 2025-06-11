@@ -8,7 +8,8 @@ Simulation of a four-player Okey game:
 """
 import logging
 import random
-from collections import Counter, defaultdict
+from collections import defaultdict
+from itertools import combinations, product
 from typing import List, Tuple, Dict, Optional
 
 # Configure logger
@@ -110,7 +111,7 @@ def distribute_tiles(tiles: List[int]) -> List[List[int]]:
     return hands
 
 
-Tile = Tuple[int, str]
+Tile = Tuple[int, str, int]
 
 
 def _generate_all_groups(tiles: List[Tile], jokers: List[Tile]) -> List[List[Tile]]:
@@ -118,46 +119,55 @@ def _generate_all_groups(tiles: List[Tile], jokers: List[Tile]) -> List[List[Til
     groups: List[List[Tile]] = []
 
     num_to_tiles: Dict[int, List[Tile]] = defaultdict(list)
-    color_to_nums: Dict[str, set] = defaultdict(set)
+    color_num_to_tiles: Dict[str, Dict[int, List[Tile]]] = defaultdict(lambda: defaultdict(list))
     for t in tiles:
         num_to_tiles[t[0]].append(t)
-        color_to_nums[t[1]].add(t[0])
+        color_num_to_tiles[t[1]][t[0]].append(t)
 
     # Full SET groups (same number, different colors)
     for num, same_num_tiles in num_to_tiles.items():
-        unique_tiles: List[Tile] = []
-        seen_colors = set()
+        color_groups: Dict[str, List[Tile]] = defaultdict(list)
         for t in same_num_tiles:
-            if t[1] not in seen_colors:
-                seen_colors.add(t[1])
-                unique_tiles.append(t)
+            color_groups[t[1]].append(t)
+        colors = list(color_groups.keys())
         for target_size in (3, 4):
-            missing = target_size - len(unique_tiles)
-            if 0 <= missing <= len(jokers) and len(unique_tiles) + len(jokers) >= 3:
-                groups.append(unique_tiles + jokers[:missing])
+            if len(colors) + len(jokers) < target_size or target_size < 3:
+                continue
+            for color_subset in combinations(colors, min(len(colors), target_size)):
+                if len(color_subset) + len(jokers) < target_size:
+                    continue
+                tile_lists = [color_groups[c] for c in color_subset]
+                for combo in product(*tile_lists):
+                    missing = target_size - len(combo)
+                    if 0 <= missing <= len(jokers):
+                        groups.append(list(combo) + jokers[:missing])
 
     # Full RUN groups (same color, consecutive numbers)
-    for color, nums in color_to_nums.items():
-        nums = sorted(nums)
+    for color, num_map in color_num_to_tiles.items():
+        nums = sorted(num_map.keys())
         for target_size in (3, 4):
             for start in range(1, 14 - target_size + 1):
                 window = list(range(start, start + target_size))
-                present = [(n, color) for n in window if n in nums]
-                missing = target_size - len(present)
-                if 0 <= missing <= len(jokers) and len(present) >= 1:
-                    groups.append(present + jokers[:missing])
+                present_tiles = [num_map[n][0] for n in window if n in num_map]
+                missing = target_size - len(present_tiles)
+                if 0 <= missing <= len(jokers) and len(present_tiles) >= 1:
+                    groups.append(present_tiles + jokers[:missing])
 
     # Partial SET groups (2 tiles, same number)
     for num, same_num_tiles in num_to_tiles.items():
         if len(same_num_tiles) >= 2:
-            groups.append(same_num_tiles[:2])
+            for i in range(len(same_num_tiles)):
+                for j in range(i + 1, len(same_num_tiles)):
+                    groups.append([same_num_tiles[i], same_num_tiles[j]])
 
     # Partial RUN groups (2 tiles, same color)
-    for color, nums in color_to_nums.items():
-        sorted_nums = sorted(nums)
+    for color, num_map in color_num_to_tiles.items():
+        sorted_nums = sorted(num_map.keys())
         for i in range(len(sorted_nums) - 1):
             if sorted_nums[i + 1] - sorted_nums[i] == 1:
-                groups.append([(sorted_nums[i], color), (sorted_nums[i + 1], color)])
+                for t1 in num_map[sorted_nums[i]]:
+                    for t2 in num_map[sorted_nums[i + 1]]:
+                        groups.append([t1, t2])
 
     unique: List[List[Tile]] = []
     seen = set()
@@ -171,7 +181,7 @@ def _generate_all_groups(tiles: List[Tile], jokers: List[Tile]) -> List[List[Til
 
 def _find_best_grouping(hand: List[Tile], okey_tile: Optional[Tile] = None) -> Tuple[List[List[Tile]], List[Tile]]:
     """Use backtracking to find grouping that leaves fewest tiles ungrouped."""
-    jokers = [t for t in hand if okey_tile is not None and t == okey_tile]
+    jokers = [t for t in hand if okey_tile is not None and t[:2] == okey_tile[:2]]
     tiles = [t for t in hand if t not in jokers]
 
     all_groups = _generate_all_groups(tiles, jokers)
@@ -197,14 +207,14 @@ def _find_best_grouping(hand: List[Tile], okey_tile: Optional[Tile] = None) -> T
 def score_hand(hand: List[int], okey: int) -> int:
     """Return the number of ungrouped tiles in ``hand`` using an exhaustive grouping strategy."""
 
-    def as_tile(idx: int) -> Tile:
+    def as_tile(unique_id: int, idx: int) -> Tile:
         tile_index = okey if idx == FAKE_OKEY_INDEX else idx
         num = get_number(tile_index)
         color = get_color(tile_index)
-        return (num or 0, color)
+        return (num or 0, color, unique_id)
 
-    tiles = [as_tile(t) for t in hand]
-    joker_tile = as_tile(okey)
+    tiles = [as_tile(i, t) for i, t in enumerate(hand)]
+    joker_tile = as_tile(-1, okey)
 
     _, remaining = _find_best_grouping(tiles, okey_tile=joker_tile)
     return len(remaining)
@@ -216,6 +226,7 @@ def main() -> None:
     """
     tiles = generate_tiles()
     indicator, okey_tile = select_indicator_and_okey(tiles)
+    tiles.remove(indicator)
     hands = distribute_tiles(tiles)
 
     logger.info(f"Indicator : {indicator} -> {get_color(indicator)}-{get_number(indicator)}")

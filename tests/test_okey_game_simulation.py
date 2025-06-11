@@ -102,3 +102,10 @@ def test_score_hand_no_groups():
     hand = [0, 13, 26, 39]
     leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
     assert leftover == 0, f"Expected 0 leftover, got {leftover}"
+
+
+def test_duplicate_tiles_used_separately():
+    """Two identical tiles should be usable in different groups."""
+    hand = [0, 0, 13, 26, 39]
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    assert leftover == 0

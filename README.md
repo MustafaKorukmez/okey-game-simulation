@@ -1,6 +1,7 @@
 # Okey Game Simulation
 
-A professional, scalable Python simulation of a four-player Okey game. This repository demonstrates:
+A professional, scalable Python simulation of a four-player Okey game.  Each
+function is fully documented with informative docstrings.  This repository demonstrates:
 
 - **Tile Generation**: Creates the full 106-tile set, including 52 unique tiles (0–51) and two fake Okey tiles (52), each duplicated twice.
 - **Indicator Selection**: Randomly picks a ‘gösterge’ tile and computes its corresponding Okey tile with wrap-around logic.
@@ -124,5 +125,6 @@ pytest --maxfail=1 --disable-warnings -q
 
 - Uses Python’s built-in `logging` module at INFO level.
 - Customize the log level or format by editing the `logging.basicConfig` call in `okey_game_simulation.py`.
+- All public functions include comprehensive docstrings accessible via `help()`.
 
 ---

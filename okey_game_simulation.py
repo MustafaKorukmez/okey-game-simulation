@@ -1,10 +1,13 @@
-"""
-Simulation of a four-player Okey game:
-- Generates and shuffles a complete set of 106 tiles
-- Selects an indicator and its corresponding Okey tile
-- Distributes tiles to players (one player receives 15, the rest 14)
-- Evaluates each hand for sequences and identical-tile pairs
-- Determines which hand is closest to winning (fewest ungrouped tiles)
+"""Okey game simulator for four players.
+
+The module provides helper functions to:
+    - build and shuffle the full 106-tile deck,
+    - determine the indicator (``gösterge``) and the matching Okey tile,
+    - deal tiles to each player,
+    - evaluate hands by forming valid sets and runs,
+    - report which player is closest to winning.
+
+Run the module as a script to execute a single simulation.
 """
 import logging
 import random
@@ -28,26 +31,26 @@ FAKE_OKEY_FACE_INDEX: int = 0
 
 
 def generate_tiles() -> List[int]:
-    """
-    Build the complete set of 106 Okey tiles.
+    """Return the full Okey tile deck as a list of indices.
 
-    Each tile index from 0 to 51 appears twice, plus two fake Okey tiles (index 52).
-
-    Returns:
-        List[int]: Unshuffled list of all tile indices.
+    The deck contains two copies of each tile index ``0`` to ``51`` and two
+    fake Okey tiles (index ``52``). The returned list is not shuffled.
     """
     return [i for i in range(53) for _ in range(2)]
 
 
 def get_color(tile_index: int) -> str:
-    """
-    Determine the color category of a tile based on its index.
+    """Return the color category of ``tile_index``.
 
-    Args:
-        tile_index (int): Tile index (0–52).
+    Parameters
+    ----------
+    tile_index : int
+        Numerical index of the tile (``0``–``52``).
 
-    Returns:
-        str: One of 'yellow', 'blue', 'black', 'red', or 'fake'.
+    Returns
+    -------
+    str
+        One of ``"yellow"``, ``"blue"``, ``"black"``, ``"red"`` or ``"fake"``.
     """
     if tile_index == FAKE_OKEY_INDEX:
         return 'fake'
@@ -61,14 +64,18 @@ def get_color(tile_index: int) -> str:
 
 
 def get_number(tile_index: int) -> Optional[int]:
-    """
-    Extract the numeric value (1–13) from a tile index.
+    """Return the face value encoded by ``tile_index``.
 
-    Args:
-        tile_index (int): Tile index (0–52).
+    Parameters
+    ----------
+    tile_index : int
+        Tile index in the range ``0``–``52``.
 
-    Returns:
-        Optional[int]: Numeric face value or None for a fake Okey.
+    Returns
+    -------
+    Optional[int]
+        An integer between ``1`` and ``13`` or ``None`` if ``tile_index``
+        refers to the fake Okey tile.
     """
     if tile_index == FAKE_OKEY_INDEX:
         return None
@@ -76,14 +83,18 @@ def get_number(tile_index: int) -> Optional[int]:
 
 
 def select_indicator_and_okey(tiles: List[int]) -> Tuple[int, int]:
-    """
-    Randomly choose the indicator tile and compute its paired Okey tile.
+    """Pick the indicator tile and derive its corresponding Okey tile.
 
-    Args:
-        tiles (List[int]): List of tile indices.
+    Parameters
+    ----------
+    tiles : List[int]
+        Collection of tile indices to select from.
 
-    Returns:
-        Tuple[int, int]: (indicator_index, okey_index)
+    Returns
+    -------
+    Tuple[int, int]
+        ``(indicator_index, okey_index)`` where ``okey_index`` is the tile that
+        acts as a joker for the chosen indicator.
     """
     valid_tiles = [t for t in tiles if t != FAKE_OKEY_INDEX]
     indicator = random.choice(valid_tiles)
@@ -98,14 +109,17 @@ def select_indicator_and_okey(tiles: List[int]) -> Tuple[int, int]:
 
 
 def distribute_tiles(tiles: List[int]) -> List[List[int]]:
-    """
-    Shuffle and allocate tiles to each player.
+    """Shuffle ``tiles`` and deal them according to ``TILES_PER_PLAYER``.
 
-    Args:
-        tiles (List[int]): List of all tile indices.
+    Parameters
+    ----------
+    tiles : List[int]
+        The complete deck of tiles.
 
-    Returns:
-        List[List[int]]: Nested list for each player's hand.
+    Returns
+    -------
+    List[List[int]]
+        A list containing each player's hand.
     """
     random.shuffle(tiles)
     hands: List[List[int]] = []
@@ -120,10 +134,10 @@ Tile = Tuple[int, str, int, bool]
 
 
 def _generate_all_groups(tiles: List[Tile], jokers: List[Tile]) -> List[List[Tile]]:
-    """Generate candidate groups of tiles using jokers as wildcards.
+    """Return all possible groups of ``tiles`` using jokers as wildcards.
 
-    Only groups of size 3 or 4 are considered. Each group can contain at most
-    one joker from ``jokers``.
+    The function produces set and run candidates of length three or four. No
+    candidate contains more than one joker from ``jokers``.
     """
     groups: List[List[Tile]] = []
 
@@ -174,7 +188,7 @@ def _generate_all_groups(tiles: List[Tile], jokers: List[Tile]) -> List[List[Til
 
 
 def _is_double_run(hand: List[int], okey: int, indicator: int) -> bool:
-    """Return True if ``hand`` consists of seven pairs (double-run)."""
+    """Check whether ``hand`` forms a double run of seven pairs."""
     counts: Dict[int, int] = defaultdict(int)
     jokers = 0
     for t in hand:
@@ -205,7 +219,11 @@ def _is_double_run(hand: List[int], okey: int, indicator: int) -> bool:
 
 
 def _find_best_grouping(hand: List[Tile]) -> Tuple[List[List[Tile]], List[Tile]]:
-    """Use backtracking to find grouping that leaves fewest tiles ungrouped."""
+    """Search all valid groupings and return the one with the fewest leftovers.
+
+    The function performs a backtracking search across all possible set and run
+    combinations generated by ``_generate_all_groups``.
+    """
     jokers = [t for t in hand if t[3]]
     tiles = [t for t in hand if not t[3]]
 
@@ -230,7 +248,12 @@ def _find_best_grouping(hand: List[Tile]) -> Tuple[List[List[Tile]], List[Tile]]
 
 
 def score_hand(hand: List[int], okey: int, indicator: int, *, log_details: bool = False) -> int:
-    """Return the number of ungrouped tiles in ``hand`` using an exhaustive grouping strategy."""
+    """Evaluate ``hand`` and return the number of tiles left ungrouped.
+
+    The function builds every possible grouping of sets and runs while
+    respecting joker usage rules. If ``log_details`` is ``True`` the chosen
+    groups and remaining tiles are logged via ``logger``.
+    """
 
     if _is_double_run(hand, okey, indicator):
         if log_details:
@@ -268,9 +291,7 @@ def score_hand(hand: List[int], okey: int, indicator: int, *, log_details: bool 
 
 
 def main() -> None:
-    """
-    Execute the Okey simulation and log results.
-    """
+    """Run the simulation once and print summary information."""
     tiles = generate_tiles()
     indicator, okey_tile = select_indicator_and_okey(tiles)
     tiles.remove(indicator)

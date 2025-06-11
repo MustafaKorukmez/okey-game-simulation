@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 NUM_PLAYERS: int = 4
 TILES_PER_PLAYER: List[int] = [15, 14, 14, 14]
 FAKE_OKEY_INDEX: int = 52
+# Face value printed on the Fake Okey tiles. In many physical sets this is a
+# specific regular tile (e.g. yellow-1). The Fake Okey only becomes a joker if
+# the indicator tile matches this face; otherwise it behaves exactly as this
+# regular tile.
+FAKE_OKEY_FACE_INDEX: int = 0
 
 
 def generate_tiles() -> List[int]:
@@ -168,13 +173,20 @@ def _generate_all_groups(tiles: List[Tile], jokers: List[Tile]) -> List[List[Til
     return unique
 
 
-def _is_double_run(hand: List[int], okey: int) -> bool:
+def _is_double_run(hand: List[int], okey: int, indicator: int) -> bool:
     """Return True if ``hand`` consists of seven pairs (double-run)."""
     counts: Dict[int, int] = defaultdict(int)
+    jokers = 0
     for t in hand:
-        counts[t] += 1
-
-    jokers = counts.pop(okey, 0) + counts.pop(FAKE_OKEY_INDEX, 0)
+        if t == FAKE_OKEY_INDEX:
+            if indicator == FAKE_OKEY_FACE_INDEX:
+                jokers += 1
+            else:
+                counts[FAKE_OKEY_FACE_INDEX] += 1
+        elif t == okey:
+            jokers += 1
+        else:
+            counts[t] += 1
 
     pairs = 0
     singles = []
@@ -217,19 +229,30 @@ def _find_best_grouping(hand: List[Tile]) -> Tuple[List[List[Tile]], List[Tile]]
     return best_groups, best_remaining
 
 
-def score_hand(hand: List[int], okey: int, *, log_details: bool = False) -> int:
+def score_hand(hand: List[int], okey: int, indicator: int, *, log_details: bool = False) -> int:
     """Return the number of ungrouped tiles in ``hand`` using an exhaustive grouping strategy."""
 
-    if _is_double_run(hand, okey):
+    if _is_double_run(hand, okey, indicator):
         if log_details:
             logger.info("Hand is a double-run (7 pairs)")
         return 0
 
     def as_tile(unique_id: int, idx: int) -> Tile:
-        tile_index = okey if idx == FAKE_OKEY_INDEX else idx
+        if idx == FAKE_OKEY_INDEX:
+            if indicator == FAKE_OKEY_FACE_INDEX:
+                tile_index = okey
+                is_joker = True
+            else:
+                tile_index = FAKE_OKEY_FACE_INDEX
+                is_joker = False
+        elif idx == okey:
+            tile_index = idx
+            is_joker = True
+        else:
+            tile_index = idx
+            is_joker = False
         num = get_number(tile_index)
         color = get_color(tile_index)
-        is_joker = idx == FAKE_OKEY_INDEX or idx == okey
         return (num or 0, color, unique_id, is_joker)
 
     tiles = [as_tile(i, t) for i, t in enumerate(hand)]
@@ -258,7 +281,7 @@ def main() -> None:
 
     scores = []
     for idx, hand in enumerate(hands, start=1):
-        remaining = score_hand(hand, okey_tile, log_details=True)
+        remaining = score_hand(hand, okey_tile, indicator, log_details=True)
         scores.append((idx, remaining))
         logger.info(f"Player {idx}: {remaining} ungrouped tiles")
 

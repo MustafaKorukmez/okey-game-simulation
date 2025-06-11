@@ -13,6 +13,7 @@ from okey_game_simulation import (
     distribute_tiles,
     score_hand,
     FAKE_OKEY_INDEX,
+    FAKE_OKEY_FACE_INDEX,
     TILES_PER_PLAYER,
 )
 
@@ -87,7 +88,7 @@ def test_distribute_tiles_counts_and_completeness():
 def test_score_hand_sequence_only():
     """A hand with a single run should leave the other tiles ungrouped."""
     hand = [0, 1, 2, 13, 13]
-    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX, indicator=FAKE_OKEY_FACE_INDEX)
     assert leftover == 2
 
 
@@ -97,26 +98,41 @@ def test_score_hand_no_groups():
     a valid set, leaving no tiles ungrouped.
     """
     hand = [0, 13, 26, 39]
-    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX, indicator=FAKE_OKEY_FACE_INDEX)
     assert leftover == 0, f"Expected 0 leftover, got {leftover}"
 
 
 def test_duplicate_tiles_used_separately():
     """Duplicate tiles may remain if they exceed set size."""
     hand = [0, 0, 13, 26, 39]
-    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX, indicator=FAKE_OKEY_FACE_INDEX)
     assert leftover == 1
 
 
 def test_double_run_detection():
     """Hand of seven identical pairs should score zero."""
     hand = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]
-    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX, indicator=FAKE_OKEY_FACE_INDEX)
     assert leftover == 0
 
 
 def test_multiple_jokers_limit_one_per_group():
     """Only one joker can be used in a single group."""
     hand = [0, 1, 52, 52]
-    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX, indicator=FAKE_OKEY_FACE_INDEX)
+    assert leftover == 1
+
+
+def test_fake_okey_normal_when_indicator_differs():
+    """Fake Okey behaves as its face tile when indicator does not match."""
+    hand = [0, 2, 4, 52]
+    # indicator different from face index so 52 acts as 0
+    leftover = score_hand(hand, okey=1, indicator=FAKE_OKEY_FACE_INDEX + 1)
+    assert leftover == 4
+
+
+def test_fake_okey_joker_when_indicator_matches():
+    """Fake Okey becomes a joker when indicator equals its face value."""
+    hand = [0, 2, 4, 52]
+    leftover = score_hand(hand, okey=1, indicator=FAKE_OKEY_FACE_INDEX)
     assert leftover == 1

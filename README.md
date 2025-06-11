@@ -84,7 +84,7 @@ okey-game-simulation/
    - 13–25: Blue 1–13
    - 26–38: Black 1–13
    - 39–51: Red 1–13
-   - 52: Fake Okey (wildcard)
+   - 52: Fake Okey
 
 2. **Indicator Logic**:
    - Randomly select a non-fake tile as the indicator.
@@ -93,7 +93,8 @@ okey-game-simulation/
 3. **Hand Scoring**:
    - **Sequences**: Runs of three consecutive numbers per color.
    - **Pairs**: Two identical tile indices.
-   - Fake Okey substitutes the true Okey value.
+   - Fake Okey acts as a regular tile showing the face value ``FAKE_OKEY_FACE_INDEX``.
+     It only becomes a joker if the indicator tile is the same value.
 
 4. **Winner Determination**:
    - Calculate ungrouped tile count per hand.

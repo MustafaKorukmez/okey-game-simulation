@@ -96,9 +96,9 @@ def test_score_hand_sequence_and_pair():
 
 def test_score_hand_no_groups():
     """
-    A hand with no possible sequence or pair
-    should have all tiles leftover.
+    A hand containing four tiles of the same number but different colors forms
+    a valid set, leaving no tiles ungrouped.
     """
     hand = [0, 13, 26, 39]
     leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
-    assert leftover == len(hand), f"Expected {len(hand)} leftover, got {leftover}"
+    assert leftover == 0, f"Expected 0 leftover, got {leftover}"

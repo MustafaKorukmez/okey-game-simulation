@@ -84,14 +84,11 @@ def test_distribute_tiles_counts_and_completeness():
     assert len(dealt) == len(set(dealt)), "Duplicate tiles found in hands"
 
 
-def test_score_hand_sequence_and_pair():
-    """
-    A hand containing one valid sequence and one valid pair
-    should result in zero leftover tiles.
-    """
+def test_score_hand_sequence_only():
+    """A hand with a single run should leave the other tiles ungrouped."""
     hand = [0, 1, 2, 13, 13]
     leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
-    assert leftover == 0, f"Expected 0 leftover, got {leftover}"
+    assert leftover == 2
 
 
 def test_score_hand_no_groups():
@@ -105,7 +102,21 @@ def test_score_hand_no_groups():
 
 
 def test_duplicate_tiles_used_separately():
-    """Two identical tiles should be usable in different groups."""
+    """Duplicate tiles may remain if they exceed set size."""
     hand = [0, 0, 13, 26, 39]
     leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    assert leftover == 1
+
+
+def test_double_run_detection():
+    """Hand of seven identical pairs should score zero."""
+    hand = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
     assert leftover == 0
+
+
+def test_multiple_jokers_limit_one_per_group():
+    """Only one joker can be used in a single group."""
+    hand = [0, 1, 52, 52]
+    leftover = score_hand(hand, okey=FAKE_OKEY_INDEX)
+    assert leftover == 1
